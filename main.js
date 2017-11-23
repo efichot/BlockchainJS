@@ -1,4 +1,4 @@
-import SHA256 from 'crypto-js';
+import CryptoJS from 'crypto-js';
 
 class Block {
     constructor(index, timestamp, data, previousHash = '') { // in reality Version, PreviousBlockHash, Merkle Root, Timestamp, Difficulty Target, Nonce 
@@ -7,16 +7,27 @@ class Block {
         this.data = data;
         this.previousHash = previousHash;
         this.hash = this.calculateHash();
+        this.nonce = 0;
     }
 
     calculateHash() {
-        return SHA256(SHA256(this.index + this.timestamp + JSON.stringify(this.data) + this.previousHash).tostring()).toString(); // twice in sha256
+        return CryptoJS.SHA256(CryptoJS.SHA256(this.index + this.timestamp + JSON.stringify(this.data) + this.previousHash + this.nonce).toString()).toString(); // twice in sha256
+    }
+
+    mineBlock(difficulty) {
+        while (this.hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")) {
+            this.nonce++;
+            this.hash = this.calculateHash();
+        }
+
+        console.log(`Block ${this.index}:  ${this.hash}`);
     }
 }
 
 class Blockchain {
-    constructor() {
+    constructor(difficulty) {
         this.chain = [this.createGenesisBlock()];
+        this.difficulty = difficulty;
     }
 
     createGenesisBlock() {
@@ -29,7 +40,32 @@ class Blockchain {
 
     addBlock(newBlock) {
         newBlock.previousHash = this.getLatestBlock().hash;
-        newBlock.hash = newBlock.calculateHash();
+        newBlock.mineBlock(this.difficulty);
         this.chain.push(newBlock);
     }
+
+    isChainValid() {
+        for (let i = 1; i < this.chain.length; i++) { // skip genesis block
+            const currentBlock = this.chain[i];
+            const previousBlock = this.chain[i - 1];
+
+            if (currentBlock.hash !== currentBlock.calculateHash()) {
+                return false;
+            }
+
+            if (currentBlock.previousHash !== previousBlock.hash) {
+                return false;
+            }
+
+            return true;
+        }
+    }
 }
+
+var myBlockchain = new Blockchain(4);
+myBlockchain.addBlock(new Block(1, Date.now(), { name: "Etienne" }));
+myBlockchain.addBlock(new Block(2, Date.now(), { name: "Gabrielle" }));
+
+console.log("Is blockchain valid? " + myBlockchain.isChainValid());
+
+console.log(JSON.stringify(myBlockchain, null, 4));
